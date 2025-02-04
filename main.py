@@ -164,7 +164,7 @@ def show_registration_page():
     with st.form("registration_form"):
         name = st.text_input("Full Name")
         father_name = st.text_input("Father's Name")
-        cnic = st.text_input("CNIC Number")
+        cnic = st.text_input("CNIC/B-Form Number")
         submitted = st.form_submit_button("Submit")
     
     if submitted:
