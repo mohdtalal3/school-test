@@ -1,4 +1,4 @@
-mailmerge
+docx-mailmerge
 sqlite-database
 streamlit
 Pillow
