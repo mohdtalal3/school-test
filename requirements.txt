@@ -1,0 +1,6 @@
+mailmerge
+sqlite-database
+streamlit
+Pillow
+pandas
+docx2pdf
