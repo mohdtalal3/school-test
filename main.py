@@ -7,6 +7,7 @@ import pandas as pd
 from PIL import Image
 from docx2pdf import convert
 from time import sleep
+import subprocess
 # Initialize SQLite database
 def init_db():
     conn = sqlite3.connect('students.db')
@@ -21,9 +22,21 @@ ADMIN_USERNAME = "2409"
 ADMIN_PASSWORD = "2105264@tT"
 
 def convert_to_pdf(docx_path):
+    output_dir = os.path.dirname(docx_path)
     pdf_path = docx_path.replace('.docx', '.pdf')
-    convert(docx_path, pdf_path)
-    return pdf_path
+    
+    try:
+        subprocess.call(['soffice',
+                     '--headless',
+                     '--convert-to',
+                     'pdf',
+                     '--outdir',
+                     output_dir,
+                     docx_path])
+        return pdf_path
+    except Exception as e:
+        st.error(f"Error converting to PDF: {str(e)}")
+        return docx_path  # Fallback to docx if conversion fails
 
 # Check if CNIC exists
 def check_cnic_exists(cnic):
