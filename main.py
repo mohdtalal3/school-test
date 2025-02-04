@@ -224,6 +224,7 @@ def show_registration_page():
                         file_name=f"{roll_no}_slip.pdf",
                         mime="application/pdf"
                     )
+                st.balloons()
 
 def show_admin_login():
     st.title("Admin Login")
