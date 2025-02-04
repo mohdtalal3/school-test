@@ -243,7 +243,7 @@ def show_admin_dashboard():
     # Logout button
     if st.button("Logout"):
         st.session_state.page = 'registration'
-        st.experimental_rerun()
+        st.rerun()
     
     # Display student records
     conn = sqlite3.connect('students.db')
