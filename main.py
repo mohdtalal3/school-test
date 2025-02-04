@@ -218,13 +218,13 @@ def show_registration_page():
                 st.write(f"Your Roll Number is: {roll_no}")
                 
                 with open(pdf_slip, "rb") as file:
-                    st.download_button(
+                    if st.download_button(
                         label="Download Roll Number Slip",
                         data=file,
                         file_name=f"{roll_no}_slip.pdf",
                         mime="application/pdf"
-                    )
-                st.balloons()
+                    ):
+                        st.balloons()
 
 def show_admin_login():
     st.title("Admin Login")
