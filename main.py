@@ -8,12 +8,13 @@ from PIL import Image
 from docx2pdf import convert
 from time import sleep
 import subprocess
+
 # Initialize SQLite database
 def init_db():
-    conn = sqlite3.connect('students.db')
+    conn = sqlite3.connect('students_data.db')  # Changed database name
     c = conn.cursor()
     c.execute('''CREATE TABLE IF NOT EXISTS students
-                 (name TEXT, father_name TEXT, cnic TEXT, roll_no TEXT, registration_date DATE)''')
+                 (name TEXT, father_name TEXT, cnic TEXT, phone_number TEXT, roll_no TEXT, registration_date DATE)''')  # Added phone_number
     conn.commit()
     conn.close()
 
@@ -36,11 +37,11 @@ def convert_to_pdf(docx_path):
         return pdf_path
     except Exception as e:
         st.error(f"Error converting to PDF: {str(e)}")
-        return docx_path  # Fallback to docx if conversion fails
+        return docx_path
 
 # Check if CNIC exists
 def check_cnic_exists(cnic):
-    conn = sqlite3.connect('students.db')
+    conn = sqlite3.connect('students_data.db')
     c = conn.cursor()
     c.execute("SELECT * FROM students WHERE cnic=?", (cnic,))
     result = c.fetchone()
@@ -49,7 +50,7 @@ def check_cnic_exists(cnic):
 
 # Get roll number slip for existing CNIC
 def get_existing_slip(cnic):
-    conn = sqlite3.connect('students.db')
+    conn = sqlite3.connect('students_data.db')
     c = conn.cursor()
     c.execute("SELECT roll_no FROM students WHERE cnic=?", (cnic,))
     roll_no = c.fetchone()[0]
@@ -57,14 +58,14 @@ def get_existing_slip(cnic):
     return f"slips/{roll_no}.docx"
 
 def generate_roll_no(name):
-    conn = sqlite3.connect('students.db')
+    conn = sqlite3.connect('students_data.db')
     c = conn.cursor()
     c.execute("SELECT COUNT(*) FROM students")
     count = c.fetchone()[0]
     conn.close()
     return f"STD-{count + 1:03d}"
 
-def generate_slip(name, father_name, cnic, roll_no):
+def generate_slip(name, father_name, cnic, phone_number, roll_no):  # Added phone_number parameter
     template = "slip.docx"
     document = MailMerge(template)
     
@@ -73,7 +74,8 @@ def generate_slip(name, father_name, cnic, roll_no):
         fathername=father_name,
         date='{:%d-%b-%Y}'.format(date.today()),
         rollno=roll_no,
-        cnic=cnic
+        cnic=cnic,
+        phone=phone_number  # Added phone number to merge
     )
     
     output_file = f"slips/{roll_no}.docx"
@@ -114,14 +116,11 @@ def main():
         </style>
     """, unsafe_allow_html=True)
     
-    # Create slips directory if it doesn't exist
     if not os.path.exists("slips"):
         os.makedirs("slips")
     
-    # Initialize database
     init_db()
     
-    # Header with logo and school info
     col1, col2, col3 = st.columns([1, 4, 1])
     
     with col1:
@@ -147,7 +146,6 @@ def main():
     
     st.markdown("<hr>", unsafe_allow_html=True)
     
-    # Navigation
     if 'page' not in st.session_state:
         st.session_state.page = 'registration'
     
@@ -165,54 +163,50 @@ def show_registration_page():
         name = st.text_input("Full Name")
         father_name = st.text_input("Father's Name")
         cnic = st.text_input("CNIC/B-Form Number")
+        phone_number = st.text_input("Phone Number")  # Added phone number input
         submitted = st.form_submit_button("Submit")
     
     if submitted:
-        if not all([name, father_name, cnic]):
+        if not all([name, father_name, cnic, phone_number]):  # Added phone_number check
             st.error("Please fill all the fields")
             return
         
-        # Show processing message with spinner
         with st.spinner('Processing your registration...'):
-            # Check if CNIC already exists
             existing_record = check_cnic_exists(cnic)
             
             if existing_record:
-                sleep(1)  # Add small delay for better UX
+                sleep(1)
                 st.warning("You are already registered!")
                 st.write(f"Name: {existing_record[0]}")
-                st.write(f"Roll Number: {existing_record[3]}")
+                st.write(f"Roll Number: {existing_record[4]}")  # Index changed due to new column
                 
-                # Show PDF generation message
                 with st.spinner('Generating your PDF slip...'):
                     existing_slip = get_existing_slip(cnic)
                     pdf_slip = convert_to_pdf(existing_slip)
-                    sleep(1)  # Add small delay for better UX
+                    sleep(1)
                     
                 with open(pdf_slip, "rb") as file:
                     st.success('Your slip is ready!')
                     st.download_button(
                         label="Download Your Roll Number Slip",
                         data=file,
-                        file_name=f"{existing_record[3]}_slip.pdf",
+                        file_name=f"{existing_record[4]}_slip.pdf",
                         mime="application/pdf"
                     )
             else:
                 roll_no = generate_roll_no(name)
                 
-                # Save to database
-                conn = sqlite3.connect('students.db')
+                conn = sqlite3.connect('students_data.db')
                 c = conn.cursor()
-                c.execute("INSERT INTO students VALUES (?, ?, ?, ?, ?)",
-                         (name, father_name, cnic, roll_no, date.today()))
+                c.execute("INSERT INTO students VALUES (?, ?, ?, ?, ?, ?)",  # Added phone_number parameter
+                         (name, father_name, cnic, phone_number, roll_no, date.today()))
                 conn.commit()
                 conn.close()
                 
-                # Show document generation message
                 with st.spinner('Generating your registration slip...'):
-                    slip_file = generate_slip(name, father_name, cnic, roll_no)
+                    slip_file = generate_slip(name, father_name, cnic, phone_number, roll_no)  # Added phone_number
                     pdf_slip = convert_to_pdf(slip_file)
-                    sleep(1)  # Add small delay for better UX
+                    sleep(1)
                 
                 st.success("Registration Successful!")
                 st.write(f"Your Roll Number is: {roll_no}")
@@ -241,20 +235,17 @@ def show_admin_login():
 def show_admin_dashboard():
     st.title("Admin Dashboard")
     
-    # Logout button
     if st.button("Logout"):
         st.session_state.page = 'registration'
         st.rerun()
     
-    # Display student records
-    conn = sqlite3.connect('students.db')
+    conn = sqlite3.connect('students_data.db')
     df = pd.read_sql_query("SELECT * FROM students", conn)
     conn.close()
     
     st.write("### Student Records")
     st.dataframe(df)
     
-    # Export to CSV option
     if not df.empty:
         csv = df.to_csv(index=False)
         st.download_button(
